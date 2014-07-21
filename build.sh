@@ -1,5 +1,5 @@
 #!/bin/sh
-docker_cmd='/usr/bin/docker'
+docker_cmd=`which docker`
 while getopts "c" flag
 do
     case "$flag" in
@@ -7,11 +7,17 @@ do
     esac
 done
 
+run_dir='./run'
+if [ ! -d $run_dir ]; then
+    mkdir $run_dir;
+fi
+
+
 if [[ $clean -gt 0 ]]; then
     echo "Removing images before rebuilding"
-    $docker_cmd rmi sgrid-base
-    $docker_cmd rmi sgrid-hub
-    $docker_cmd rmi sgrid-ff-node
+    $docker_cmd rmi -f sgrid-base
+    $docker_cmd rmi -f sgrid-hub
+    $docker_cmd rmi -f sgrid-ff-node
 fi
 
 $docker_cmd build -t sgrid-base ./sgrid-base

@@ -8,18 +8,20 @@ if [ "$2" != "" ]; then
 fi
 
 HUB_IMAGE="sgrid-hub"
+HUB_NAME="sgrid-hub"
 NODE_IMAGE="sgrid-ff-node"
 
 DEFAULT_NODES=3
 
-HUB_CID_PATH="/var/run/selenium-hub.cid"
+RUN_DIR='./run'
+HUB_CID_PATH="$RUN_DIR/selenium-hub.cid"
 
 function startHub() {
     if [ -f $HUB_CID_PATH ]; then
         echo "Hub already running"
         exit 1
     fi
-    docker run -d -p $HUB_PORT:4444 -cidfile $HUB_CID_PATH $HUB_IMAGE
+    docker run --name $HUB_NAME -d -p $HUB_PORT:4444 --cidfile $HUB_CID_PATH $HUB_IMAGE
 }
 
 function stopHub() {
@@ -27,7 +29,7 @@ function stopHub() {
         echo "Hub already stopped"
         exit 1
     fi
-    docker stop $(cat $HUB_CID_PATH)
+    docker stop $(cat $HUB_CID_PATH) && docker rm $HUB_NAME
     rm $HUB_CID_PATH
 }
 
@@ -38,9 +40,7 @@ function startNode() {
     fi
 
     HUB_ID=$(cat $HUB_CID_PATH)
-    HUB_NAME=$(docker inspect $HUB_ID | python -c 'import json,sys;obj=json.load(sys.stdin);print obj[0]["Name"]')
-
-    docker run -d -link "${HUB_NAME}:hub" $NODE_IMAGE
+    docker run -d --link "$HUB_NAME:hub" $NODE_IMAGE
 }
 
 function stopNode() {
@@ -71,6 +71,7 @@ function stop() {
     if [ -f $HUB_CID_PATH ]; then
         stopHub
     fi
+    cleanAll
 }
 
 function status() {
@@ -86,6 +87,10 @@ function status() {
     done
 }
 
+function cleanAll() {
+    docker ps -a | grep 'Exited' | awk '{print $1}' | xargs docker rm
+}
+
 
 function usage() {
     echo "Usage:    `basename $0` <action>"
@@ -99,6 +104,7 @@ function usage() {
     echo "          stopHub     stop the hub container"
     echo "          startNode   add a new node to the grid"
     echo "          stopNode    remove a node from the grid"
+    echo "          cleanAll    remove all old nodes"
 }
 
 case $1 in
@@ -116,6 +122,8 @@ case $1 in
         startNode;;
     stopNode)
         stopNode;;
+    cleanAll)
+        cleanAll;;
     *)
         usage
         exit 1
